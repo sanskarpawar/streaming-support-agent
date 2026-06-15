@@ -1,13 +1,42 @@
+# ── Python ────────────────────────────────────────────────────────────────────
 .env
+.env.*
+!.env.example
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
 *.egg-info/
 dist/
 build/
 .venv/
 venv/
+.coverage
+coverage/
+htmlcov/
+
+# ── Logs & reports ────────────────────────────────────────────────────────────
 *.log
-reports/
+evals/reports/
+
+# ── Temporary / debug scripts ─────────────────────────────────────────────────
+scripts/
+
+# ── Editor ────────────────────────────────────────────────────────────────────
+.idea/
+*.suo
+*.sw?
+.DS_Store
+Thumbs.db
+
+# ── Frontend (node) ───────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+desktop.ini
