@@ -10,7 +10,6 @@ The system routes every customer message through a triage agent that hands off t
 
 ![Architecture Diagram](docs/Arch_Diag_Mermaid.png)
 
-> Full architecture details are in [`docs/design.md`](docs/design.md).
 
 ---
 
