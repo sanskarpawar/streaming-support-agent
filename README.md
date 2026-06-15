@@ -6,7 +6,7 @@ A multi-agent AI support assistant for a fictional streaming and rental platform
 
 ## Architecture
 
-The system routes every customer message through a triage agent that hands off to the correct specialist using Semantic Kernel's native `HandoffOrchestration` — zero custom routing code.
+The system routes every customer message through a triage agent that hands off to the correct specialist using Semantic Kernel's native `HandoffOrchestration` 
 
 ![Architecture Diagram](docs/Arch_Diag_Mermaid.png)
 
