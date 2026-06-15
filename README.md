@@ -1,6 +1,6 @@
 # Streaming Support Agent
 
-A production-grade multi-agent AI support assistant for a fictional streaming and rental platform, built with **Semantic Kernel `HandoffOrchestration`**, FastAPI, PostgreSQL, and a React + Tailwind CSS frontend.
+A multi-agent AI support assistant for a fictional streaming and rental platform, built with **Semantic Kernel `HandoffOrchestration`**, FastAPI, PostgreSQL, and a React + Tailwind CSS frontend.
 
 ---
 
