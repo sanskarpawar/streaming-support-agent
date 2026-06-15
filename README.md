@@ -52,10 +52,26 @@ This creates a `.venv` in the project root and installs all dependencies (includ
 
 ```bash
 cp .env.example .env
-# Edit .env and set:
-#   OPENAI_API_KEY=sk-...
-#   DATABASE_URL=postgresql+asyncpg://postgres:<password>@localhost:5432/pagila
 ```
+
+Edit `.env` and fill in the required values:
+
+| Variable | Required | Description |
+|---|---|---|
+| `OPENAI_API_KEY` | Yes (or Azure) | OpenAI API key — if blank, falls back to Azure OpenAI |
+| `DATABASE_URL` | Yes | PostgreSQL connection string, e.g. `postgresql+asyncpg://postgres:admin@localhost:5432/pagila` |
+| `AZURE_OPENAI_ENDPOINT` | If no OpenAI key | Azure OpenAI endpoint URL |
+| `AZURE_OPENAI_API_VERSION` | If no OpenAI key | e.g. `2024-02-01` |
+| `AZURE_OPENAI_CHAT_MODEL` | If no OpenAI key | Deployment name, e.g. `gpt-4.1` |
+| `APIM_BASE_URL` | Optional | Azure API Management proxy URL (overrides endpoint if set) |
+| `LANGFUSE_PUBLIC_KEY` | Optional | Langfuse public key (`pk-lf-...`) — leave blank to disable tracing |
+| `LANGFUSE_SECRET_KEY` | Optional | Langfuse secret key (`sk-lf-...`) |
+| `LANGFUSE_BASE_URL` | Optional | Langfuse host — EU: `https://cloud.langfuse.com`, US: `https://us.cloud.langfuse.com` |
+
+**Langfuse** is an open-source LLM observability platform. When configured, every agent turn is traced (intent, agent selected, tools used, guardrail result, latency). To get keys:
+1. Sign up at [langfuse.com](https://langfuse.com) (free tier available)
+2. Create a project → copy the **Public Key** and **Secret Key**
+3. Set `LANGFUSE_BASE_URL` to match your account region (`us.cloud.langfuse.com` for US)
 
 ### 4. Run Migrations
 
@@ -75,6 +91,18 @@ uv run uvicorn app.main:app --reload
 ```
 
 API will be available at `http://localhost:8000`. Docs at `http://localhost:8000/docs`.
+
+### 6. Start the Frontend (optional)
+
+In a separate terminal:
+
+```bash
+cd frontend
+npm install       # first time only
+npm run dev
+```
+
+UI will be available at `http://localhost:5173`. The Vite dev server proxies all `/agent` and `/health` requests to the FastAPI backend on port 8000 automatically — no extra configuration needed.
 
 ---
 
