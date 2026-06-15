@@ -1,0 +1,50 @@
+[
+  {
+    "id": "kb_001",
+    "title": "How to update your payment method",
+    "source": "Help Center > Billing > Payment Methods",
+    "content": "To update your payment method, go to Account Settings > Billing > Payment Methods. Click 'Add Payment Method' and follow the prompts. Your existing subscription will automatically use the new method on the next billing cycle. Note: we do not store full card numbers — all payments are processed securely by our payment partner."
+  },
+  {
+    "id": "kb_002",
+    "title": "How to cancel your streaming subscription",
+    "source": "Help Center > Subscriptions > Cancel",
+    "content": "You can cancel your streaming subscription at any time from Account Settings > Subscriptions > Cancel Plan. Your access continues until the end of the current billing period. Cancellation takes effect immediately for the auto-renew, meaning your plan will not renew next cycle. To request an immediate refund, please contact support."
+  },
+  {
+    "id": "kb_003",
+    "title": "What is included in each streaming plan?",
+    "source": "Help Center > Subscriptions > Plan Comparison",
+    "content": "Basic Plan ($4.99/mo): Access to 500+ titles, SD quality, 1 device at a time. Standard Plan ($9.99/mo): Access to 2,000+ titles, HD quality, 2 devices simultaneously. Premium Plan ($14.99/mo): Full catalog of 5,000+ titles, 4K Ultra HD where available, 4 devices simultaneously, offline downloads."
+  },
+  {
+    "id": "kb_004",
+    "title": "How to download movies for offline viewing",
+    "source": "Help Center > Streaming > Offline Downloads",
+    "content": "Offline downloads are available on Premium plan only. Open the app on your mobile device, find the film you want, and tap the Download icon. Downloads expire after 30 days or 48 hours after you start watching. You can have up to 25 titles downloaded at a time."
+  },
+  {
+    "id": "kb_005",
+    "title": "Why is a film not available for streaming?",
+    "source": "Help Center > Catalog > Availability",
+    "content": "Streaming availability depends on licensing agreements that vary by region and change over time. If a film shows 'Rental Only', it is available for physical or digital rental but not included in your streaming plan. If a title is temporarily unavailable, it may return in the future. Use our search to find similar titles."
+  },
+  {
+    "id": "kb_006",
+    "title": "How to report a problem with video playback",
+    "source": "Help Center > Technical > Playback Issues",
+    "content": "If you experience buffering, freezing, or quality issues: (1) Check your internet connection — we recommend at least 5 Mbps for HD. (2) Try refreshing the page or restarting the app. (3) Clear your browser cache. (4) Try a different device or browser. If the issue persists, contact support with your device type, browser version, and the time the issue occurred."
+  },
+  {
+    "id": "kb_007",
+    "title": "How to manage devices on your account",
+    "source": "Help Center > Account > Device Management",
+    "content": "Go to Account Settings > Devices to see all devices logged into your account. You can remove devices you no longer use. The number of simultaneous streams depends on your plan. If you see a device you don't recognize, change your password immediately and contact support."
+  },
+  {
+    "id": "kb_008",
+    "title": "Refund policy for streaming subscriptions",
+    "source": "Help Center > Billing > Refunds",
+    "content": "We offer a full refund within 7 days of the initial subscription purchase if you have not streamed more than 2 hours of content. For renewal charges, refund requests must be made within 48 hours of the charge. Partial refunds for mid-cycle cancellations are not available. For questions, contact our billing team via live chat or email."
+  }
+]
