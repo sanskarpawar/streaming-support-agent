@@ -65,3 +65,29 @@ class SessionOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     messages: list[MessageOut] = Field(default_factory=list)
+
+
+# ── Session management schemas ────────────────────────────────────────────────
+
+class SessionSummary(BaseModel):
+    """Lightweight session record returned by the list endpoint (no messages)."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    customer_id: int
+    title: str | None = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class SessionCreate(BaseModel):
+    """Request body for POST /agent/sessions."""
+    customer_id: int
+    title: str | None = None
+
+
+class SessionPatch(BaseModel):
+    """Request body for PATCH /agent/sessions/{id}. All fields are optional."""
+    title: str | None = None
+    status: str | None = None  # accepted values: "active" | "archived"

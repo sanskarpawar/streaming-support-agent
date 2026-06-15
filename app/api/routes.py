@@ -1,25 +1,38 @@
 """
 FastAPI routes:
-  POST /agent/respond         — full structured JSON response
-  POST /agent/respond/stream  — SSE streaming response
-  GET  /agent/sessions/{id}   — session metadata + full message history
+  POST /agent/respond                  — full structured JSON response
+  POST /agent/respond/stream           — SSE streaming response
+  GET  /agent/sessions                 — list sessions for a customer
+  POST /agent/sessions                 — explicitly create a new session
+  GET  /agent/sessions/{id}            — session metadata + full message history
+  PATCH /agent/sessions/{id}           — update session title or status
+  DELETE /agent/sessions/{id}          — archive (soft-delete) a session
 """
 from __future__ import annotations
 
 import json
 from typing import AsyncGenerator
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
+from app.db.history import ChatHistoryService
 from app.db.session import get_db
 from app.db.models import ConversationSession, ConversationMessage
 from app.orchestrator import run_turn
-from app.schemas.response import AgentRequest, AgentResponse, SessionOut, MessageOut
+from app.schemas.response import (
+    AgentRequest,
+    AgentResponse,
+    MessageOut,
+    SessionCreate,
+    SessionOut,
+    SessionPatch,
+    SessionSummary,
+)
 
 router = APIRouter()
 
@@ -111,6 +124,43 @@ async def agent_respond_stream(
     return EventSourceResponse(event_stream())
 
 
+# ── GET /agent/sessions ───────────────────────────────────────────────────────
+
+@router.get("/agent/sessions", response_model=list[SessionSummary])
+async def list_sessions(
+    customer_id: int = Query(..., description="Filter sessions by customer ID"),
+    include_archived: bool = Query(False, description="Include archived sessions"),
+    db: AsyncSession = Depends(get_db),
+) -> list[SessionSummary]:
+    """List all sessions for a customer, newest first."""
+    svc = ChatHistoryService(db)
+    sessions = await svc.list_sessions(
+        customer_id, exclude_archived=not include_archived
+    )
+    return [SessionSummary.model_validate(s) for s in sessions]
+
+
+# ── POST /agent/sessions ──────────────────────────────────────────────────────
+
+@router.post("/agent/sessions", response_model=SessionOut, status_code=201)
+async def create_session(
+    body: SessionCreate,
+    db: AsyncSession = Depends(get_db),
+) -> SessionOut:
+    """Explicitly create a new session with a server-generated UUID."""
+    svc = ChatHistoryService(db)
+    session = await svc.create_session(body.customer_id, title=body.title)
+    return SessionOut(
+        id=session.id,
+        customer_id=session.customer_id,
+        title=session.title,
+        status=session.status,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        messages=[],
+    )
+
+
 # ── GET /agent/sessions/{conversation_id} ─────────────────────────────────────
 
 @router.get("/agent/sessions/{conversation_id}", response_model=SessionOut)
@@ -149,3 +199,53 @@ async def get_session(
             for m in session.messages
         ],
     )
+
+
+# ── PATCH /agent/sessions/{conversation_id} ────────────────────────────────────
+
+@router.patch("/agent/sessions/{conversation_id}", response_model=SessionSummary)
+async def patch_session(
+    conversation_id: str,
+    body: SessionPatch,
+    db: AsyncSession = Depends(get_db),
+) -> SessionSummary:
+    """Update a session's title and/or status."""
+    svc = ChatHistoryService(db)
+    session = await svc.get_session(conversation_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if body.title is not None:
+        await svc.update_title(conversation_id, body.title)
+        session.title = body.title
+
+    if body.status is not None:
+        allowed = {"active", "archived"}
+        if body.status not in allowed:
+            raise HTTPException(
+                status_code=422,
+                detail=f"status must be one of {sorted(allowed)}",
+            )
+        await svc.update_status(conversation_id, body.status)
+        session.status = body.status
+
+    # Re-fetch to get updated timestamps
+    updated = await svc.get_session(conversation_id)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return SessionSummary.model_validate(updated)
+
+
+# ── DELETE /agent/sessions/{conversation_id} ───────────────────────────────────
+
+@router.delete("/agent/sessions/{conversation_id}")
+async def delete_session(
+    conversation_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Archive (soft-delete) a session. Returns 404 if not found."""
+    svc = ChatHistoryService(db)
+    found = await svc.archive_session(conversation_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"ok": True, "id": conversation_id}

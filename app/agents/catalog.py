@@ -1,9 +1,8 @@
 """CatalogAgent — answers film catalog and streaming availability questions."""
 from semantic_kernel.agents import ChatCompletionAgent
-from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
+from app.core.llm import build_chat_service
 from app.plugins.catalog_plugin import CatalogPlugin
 
 CATALOG_INSTRUCTIONS = """\
@@ -23,14 +22,10 @@ Guidelines:
 
 
 def build_catalog_agent(db: AsyncSession, conversation_id: str) -> ChatCompletionAgent:
-    settings = get_settings()
     return ChatCompletionAgent(
         name="CatalogAgent",
         description="Answers questions about the film catalog and streaming availability.",
         instructions=CATALOG_INSTRUCTIONS,
-        service=OpenAIChatCompletion(
-            ai_model_id=settings.openai_model,
-            api_key=settings.openai_api_key,
-        ),
+        service=build_chat_service(),
         plugins=[CatalogPlugin(db=db, conversation_id=conversation_id)],
     )

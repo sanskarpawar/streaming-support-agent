@@ -1,9 +1,8 @@
 """SubscriptionAgent — answers streaming subscription and renewal questions."""
 from semantic_kernel.agents import ChatCompletionAgent
-from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
+from app.core.llm import build_chat_service
 from app.plugins.subscription_plugin import SubscriptionPlugin
 
 SUBSCRIPTION_INSTRUCTIONS = """\
@@ -23,14 +22,10 @@ Guidelines:
 
 
 def build_subscription_agent(db: AsyncSession, conversation_id: str) -> ChatCompletionAgent:
-    settings = get_settings()
     return ChatCompletionAgent(
         name="SubscriptionAgent",
         description="Handles streaming subscription status and renewal questions.",
         instructions=SUBSCRIPTION_INSTRUCTIONS,
-        service=OpenAIChatCompletion(
-            ai_model_id=settings.openai_model,
-            api_key=settings.openai_api_key,
-        ),
+        service=build_chat_service(),
         plugins=[SubscriptionPlugin(db=db, conversation_id=conversation_id)],
     )

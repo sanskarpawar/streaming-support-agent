@@ -18,6 +18,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from openai import BadRequestError as OpenAIBadRequestError
 from semantic_kernel.agents import HandoffOrchestration
 from semantic_kernel.agents.runtime import InProcessRuntime
 from semantic_kernel.contents import ChatMessageContent
@@ -78,16 +79,38 @@ class TurnCapture:
 # ── Title generation ──────────────────────────────────────────────────────────
 
 async def _generate_title(first_message: str) -> str:
-    """Single cheap LLM call to produce a 4-6 word conversation title."""
-    from openai import AsyncOpenAI
-    settings = get_settings()
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    """Single cheap LLM call to produce a 4-6 word conversation title.
 
-    class _Title(TitleResult):
-        pass
+    Uses direct OpenAI when OPENAI_API_KEY is set, otherwise Azure OpenAI
+    (via APIM proxy or direct endpoint) — mirrors the same selection logic
+    as build_chat_service().
+    """
+    from openai import AsyncAzureOpenAI, AsyncOpenAI
+    settings = get_settings()
+
+    if not settings.use_azure:
+        client: AsyncOpenAI = AsyncOpenAI(api_key=settings.openai_api_key)
+        model = settings.openai_model
+    elif settings.azure_openai_endpoint:
+        client = AsyncAzureOpenAI(
+            azure_endpoint=settings.azure_openai_endpoint,
+            api_key=settings.azure_openai_api_key,
+            api_version=settings.azure_openai_api_version,
+        )
+        model = settings.azure_openai_chat_model
+    else:
+        client = AsyncAzureOpenAI(
+            azure_endpoint=settings.apim_base_url,
+            api_key=settings.apim_subscription_key,
+            api_version=settings.azure_openai_api_version,
+            default_headers={
+                "Ocp-Apim-Subscription-Key": settings.apim_subscription_key,
+            },
+        )
+        model = settings.azure_openai_chat_model
 
     response = await client.beta.chat.completions.parse(
-        model=settings.openai_model,
+        model=model,
         temperature=0,
         messages=[
             {
@@ -99,7 +122,7 @@ async def _generate_title(first_message: str) -> str:
             },
             {"role": "user", "content": first_message},
         ],
-        response_format=_Title,
+        response_format=TitleResult,
     )
     parsed = response.choices[0].message.parsed
     return parsed.title if parsed else first_message[:50]
@@ -140,6 +163,7 @@ async def run_turn(
     # 5. Run HandoffOrchestration
     runtime = InProcessRuntime()
     runtime.start()
+    _content_filter_blocked = False
     try:
         with tracer.span("handoff_orchestration", {"task_preview": task[:200]}):
             orchestration = HandoffOrchestration(
@@ -149,12 +173,44 @@ async def run_turn(
             )
             result = await orchestration.invoke(task=task, runtime=runtime)
             await result.get(timeout=60)
+    except Exception as exc:
+        # Azure content filter fires when the user's message itself is flagged as harmful.
+        # SK wraps the underlying BadRequestError as "service encountered a content error".
+        # Treat it as a blocked input → route to HumanHandoffAgent rather than crashing.
+        err_str = str(exc).lower()
+        is_content_filter = (
+            isinstance(exc, OpenAIBadRequestError)
+            or "content_filter" in err_str
+            or "content error" in err_str
+            or "jailbreak" in err_str
+            or "responsibleaipolicyviolation" in err_str
+        )
+        if is_content_filter:
+            _content_filter_blocked = True
+            logger.warning(
+                "content_filter_blocked_input",
+                conversation_id=conversation_id,
+                error=str(exc),
+            )
+        else:
+            raise
     finally:
-        await runtime.stop_when_idle()
+        try:
+            await runtime.stop_when_idle()
+        except Exception as stop_exc:
+            logger.warning("runtime_stop_error", error=str(stop_exc))
 
-    specialist_answer = capture.specialist_answer
-    selected_agent = capture.selected_agent
-    tools_used = capture.tools_used
+    if _content_filter_blocked:
+        specialist_answer = (
+            "I'm sorry, I'm unable to process that request. "
+            "Please contact our support team directly if you need further assistance."
+        )
+        selected_agent = "HumanHandoffAgent"
+        tools_used = []
+    else:
+        specialist_answer = capture.specialist_answer
+        selected_agent = capture.selected_agent
+        tools_used = capture.tools_used
 
     logger.info(
         "orchestration_complete",

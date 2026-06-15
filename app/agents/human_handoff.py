@@ -1,8 +1,7 @@
 """HumanHandoffAgent — escalates to a human support agent."""
 from semantic_kernel.agents import ChatCompletionAgent
-from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
 
-from app.core.config import get_settings
+from app.core.llm import build_chat_service
 from app.plugins.handoff_plugin import HandoffPlugin
 
 HUMAN_HANDOFF_INSTRUCTIONS = """\
@@ -22,14 +21,10 @@ Guidelines:
 
 
 def build_human_handoff_agent(conversation_id: str) -> ChatCompletionAgent:
-    settings = get_settings()
     return ChatCompletionAgent(
         name="HumanHandoffAgent",
         description="Escalates customer requests to human support and creates escalation tickets.",
         instructions=HUMAN_HANDOFF_INSTRUCTIONS,
-        service=OpenAIChatCompletion(
-            ai_model_id=settings.openai_model,
-            api_key=settings.openai_api_key,
-        ),
+        service=build_chat_service(),
         plugins=[HandoffPlugin(conversation_id=conversation_id)],
     )

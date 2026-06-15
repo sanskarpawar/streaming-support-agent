@@ -15,12 +15,18 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import ConversationMessage, ConversationSession
+
+
+def _utcnow() -> datetime:
+    """Return current UTC time as a naive datetime (TIMESTAMP WITHOUT TIME ZONE)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class ChatHistoryService:
@@ -34,11 +40,11 @@ class ChatHistoryService:
             id=conversation_id,
             customer_id=customer_id,
             status="active",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=_utcnow(),
+            updated_at=_utcnow(),
         ).on_conflict_do_update(
             index_elements=["id"],
-            set_={"updated_at": datetime.now(timezone.utc)},
+            set_={"updated_at": _utcnow()},
         ).returning(ConversationSession)
 
         result = await self._db.execute(stmt)
@@ -67,6 +73,57 @@ class ChatHistoryService:
         )
         await self._db.commit()
 
+    async def list_sessions(
+        self,
+        customer_id: int,
+        *,
+        exclude_archived: bool = True,
+    ) -> list[ConversationSession]:
+        """Return all sessions for a customer, newest first."""
+        stmt = (
+            select(ConversationSession)
+            .where(ConversationSession.customer_id == customer_id)
+            .order_by(ConversationSession.updated_at.desc())
+        )
+        if exclude_archived:
+            stmt = stmt.where(ConversationSession.status != "archived")
+        result = await self._db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def create_session(
+        self,
+        customer_id: int,
+        title: str | None = None,
+    ) -> ConversationSession:
+        """Explicitly create a new session with a server-generated UUID."""
+        now = _utcnow()
+        session = ConversationSession(
+            id=str(uuid4()),
+            customer_id=customer_id,
+            title=title,
+            status="active",
+            created_at=now,
+            updated_at=now,
+        )
+        self._db.add(session)
+        await self._db.commit()
+        await self._db.refresh(session)
+        return session
+
+    async def archive_session(self, conversation_id: str) -> bool:
+        """Soft-delete a session by setting its status to 'archived'.
+
+        Returns True if a row was updated, False if the session was not found.
+        """
+        result = await self._db.execute(
+            update(ConversationSession)
+            .where(ConversationSession.id == conversation_id)
+            .values(status="archived", updated_at=_utcnow())
+            .returning(ConversationSession.id)
+        )
+        await self._db.commit()
+        return result.scalar_one_or_none() is not None
+
     # ── Messages ─────────────────────────────────────────────────────────────
 
     async def load_messages(self, conversation_id: str) -> list[ConversationMessage]:
@@ -92,7 +149,7 @@ class ChatHistoryService:
         tools_used: list[str],
         metadata: dict[str, Any],
     ) -> None:
-        now = datetime.now(timezone.utc)
+        now = _utcnow()
         self._db.add_all([
             ConversationMessage(
                 conversation_id=conversation_id,

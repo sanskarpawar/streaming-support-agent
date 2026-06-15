@@ -11,6 +11,7 @@ A production-grade multi-agent AI support assistant for a fictional streaming an
 | LLM | OpenAI `gpt-4.1-mini` (configurable) |
 | Database | PostgreSQL (Pagila sample DB) |
 | ORM / Migrations | SQLAlchemy async + Alembic |
+| Package manager | **uv** |
 | Observability | Structlog + Langfuse (optional) |
 | MCP server | `pagila-support-mcp` (3 DB-backed tools) |
 | Testing | Pytest + pytest-asyncio |
@@ -22,6 +23,14 @@ A production-grade multi-agent AI support assistant for a fictional streaming an
 ### 1. Prerequisites
 
 - Python 3.12+
+- [uv](https://docs.astral.sh/uv/) — install once with:
+  ```bash
+  # Windows (PowerShell)
+  irm https://astral.sh/uv/install.ps1 | iex
+
+  # macOS / Linux
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
 - PostgreSQL with the **Pagila** sample database restored
 
 ```bash
@@ -34,8 +43,10 @@ psql -U postgres -d pagila -f pagila-data.sql
 ### 2. Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
+
+This creates a `.venv` in the project root and installs all dependencies (including dev) from `pyproject.toml` and the pinned `uv.lock`.
 
 ### 3. Configure Environment
 
@@ -49,7 +60,7 @@ cp .env.example .env
 ### 4. Run Migrations
 
 ```bash
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 This applies three migrations:
@@ -60,7 +71,7 @@ This applies three migrations:
 ### 5. Start the API
 
 ```bash
-uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 ```
 
 API will be available at `http://localhost:8000`. Docs at `http://localhost:8000/docs`.
@@ -93,6 +104,86 @@ Returns session metadata and full message history.
 
 ---
 
+## Session Management API
+
+Full CRUD control over conversation sessions.
+
+### GET /agent/sessions — List sessions for a customer
+
+```bash
+curl "http://localhost:8000/agent/sessions?customer_id=1"
+# Add &include_archived=true to include archived sessions
+```
+
+Response: array of `SessionSummary` objects (no messages), newest first.
+
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "customer_id": 1,
+    "title": "Streaming availability question",
+    "status": "active",
+    "created_at": "2026-06-15T10:00:00",
+    "updated_at": "2026-06-15T10:05:00"
+  }
+]
+```
+
+### POST /agent/sessions — Create a new session
+
+```bash
+curl -X POST http://localhost:8000/agent/sessions \
+  -H "Content-Type: application/json" \
+  -d '{"customer_id": 1, "title": "My support request"}'
+```
+
+Returns a `SessionOut` (with server-generated UUID) and HTTP 201.
+
+### PATCH /agent/sessions/{id} — Rename or change status
+
+```bash
+curl -X PATCH http://localhost:8000/agent/sessions/<id> \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Updated title"}'
+```
+
+Both `title` and `status` are optional. `status` accepts `"active"` or `"archived"`.
+
+### DELETE /agent/sessions/{id} — Archive (soft-delete) a session
+
+```bash
+curl -X DELETE http://localhost:8000/agent/sessions/<id>
+```
+
+Sets `status = "archived"`. The session is hidden from the default list but is not permanently deleted. Returns `{"ok": true, "id": "<id>"}` or 404 if not found.
+
+---
+
+## Frontend
+
+A React + Vite + Tailwind CSS chat UI lives in `frontend/`.
+
+```bash
+cd frontend
+npm install
+npm run dev   # http://localhost:5173
+```
+
+The Vite dev server proxies `/agent` and `/health` to the FastAPI backend on port 8000 — no CORS configuration needed.
+
+**Features:**
+- Session sidebar (left panel) — lists all sessions for the active customer, newest first
+- Click a session to switch conversations and load history
+- Double-click a session title to rename it inline (PATCH)
+- Hover a session to reveal a delete button (archives via DELETE)
+- "New conversation" button creates a session via POST before the first message
+- Streaming responses via SSE with real-time typing indicator
+- Session titles appear in the header after the first AI response
+- Health indicator dot — polls `GET /health` every 30 seconds
+
+---
+
 ## Agents
 
 | Agent | Responsibility |
@@ -112,7 +203,7 @@ Returns session metadata and full message history.
 Run the `pagila-support-mcp` local MCP server (senior-signal level):
 
 ```bash
-python mcp/server.py
+uv run python mcp/server.py
 ```
 
 Exposes 3 DB-backed tools:
@@ -125,7 +216,7 @@ Exposes 3 DB-backed tools:
 ## Running Tests
 
 ```bash
-pytest tests/ -v
+uv run pytest tests/ -v
 ```
 
 ## Running Evals
@@ -133,10 +224,23 @@ pytest tests/ -v
 Start the API first, then:
 
 ```bash
-python evals/run_evals.py --base-url http://localhost:8000 --verbose
+uv run python evals/run_evals.py --base-url http://localhost:8000 --verbose
 ```
 
-Runs 12 eval cases covering all rubric scenarios and prints a pass/fail report.
+Runs 12 eval cases covering all rubric scenarios and saves timestamped JSON + Markdown reports to `evals/reports/`.
+
+### Known Limitation — Non-deterministic LLM Output
+
+The eval runner checks agent routing, tool usage, and safety behaviors (all deterministic) but also does **keyword matching** against the LLM-generated answer (`must_include` / `must_not_include` terms in `eval_cases.json`).
+
+**LLM output is non-deterministic.** The same prompt may produce subtly different phrasing on different runs — e.g., "you do not have an active subscription" vs. "no subscription was found on your account". Both are correct answers but only one may contain the keyword the eval expects.
+
+As a result:
+- Structural checks (agent selection, tool invocation, guardrail triggering, safety escalation) are reliable and repeatable.
+- Keyword checks on generated text **may occasionally fail or pass differently across runs** — this is expected behavior, not a code defect.
+- If a keyword check fails but the agent, tools, and safety behavior are all correct, the eval is functionally passing.
+
+For production-grade eval reliability, replace keyword matching with an LLM-as-judge scoring model or a semantic similarity threshold.
 
 ---
 

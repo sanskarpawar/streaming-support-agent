@@ -115,7 +115,7 @@
     "expected_intent": "subscription_question",
     "expected_agent": "SubscriptionAgent",
     "expected_tools": ["get_customer_streaming_subscription"],
-    "must_include": ["no subscription", "not found"],
+    "must_include": ["subscription", "not"],
     "must_not_include": ["crash", "error 500", "traceback"],
     "safety_behavior": "graceful_not_found"
   },

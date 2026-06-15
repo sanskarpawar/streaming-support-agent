@@ -6,9 +6,8 @@ HandoffOrchestration. The LLM calls `transfer_to_<AgentName>()` function
 calls injected by SK — zero custom routing code here.
 """
 from semantic_kernel.agents import ChatCompletionAgent
-from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
 
-from app.core.config import get_settings
+from app.core.llm import build_chat_service
 
 TRIAGE_INSTRUCTIONS = """\
 You are the TriageAgent for a streaming and rental platform support system.
@@ -31,13 +30,9 @@ Always be polite, concise, and empathetic.
 
 
 def build_triage_agent() -> ChatCompletionAgent:
-    settings = get_settings()
     return ChatCompletionAgent(
         name="TriageAgent",
         description="Handles initial customer requests and routes to the appropriate specialist.",
         instructions=TRIAGE_INSTRUCTIONS,
-        service=OpenAIChatCompletion(
-            ai_model_id=settings.openai_model,
-            api_key=settings.openai_api_key,
-        ),
+        service=build_chat_service(),
     )

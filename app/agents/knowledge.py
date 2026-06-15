@@ -1,8 +1,7 @@
 """KnowledgeAgent — answers general support questions from the KB."""
 from semantic_kernel.agents import ChatCompletionAgent
-from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
 
-from app.core.config import get_settings
+from app.core.llm import build_chat_service
 from app.plugins.kb_plugin import KBPlugin
 
 KNOWLEDGE_INSTRUCTIONS = """\
@@ -23,14 +22,10 @@ Guidelines:
 
 
 def build_knowledge_agent(conversation_id: str) -> ChatCompletionAgent:
-    settings = get_settings()
     return ChatCompletionAgent(
         name="KnowledgeAgent",
         description="Answers general support questions using the knowledge base.",
         instructions=KNOWLEDGE_INSTRUCTIONS,
-        service=OpenAIChatCompletion(
-            ai_model_id=settings.openai_model,
-            api_key=settings.openai_api_key,
-        ),
+        service=build_chat_service(),
         plugins=[KBPlugin(conversation_id=conversation_id)],
     )

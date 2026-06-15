@@ -98,7 +98,7 @@ class ConversationSession(Base):
     __tablename__ = "conversation_sessions"
 
     id = Column(String(255), primary_key=True)
-    customer_id = Column(Integer, ForeignKey("customer.customer_id"), nullable=False)
+    customer_id = Column(Integer, nullable=False)
     title = Column(String(200))
     status = Column(String(20), nullable=False, default="active")
     created_at = Column(DateTime, nullable=False, server_default=func.now())
