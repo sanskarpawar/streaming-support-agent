@@ -1,6 +1,34 @@
 # Streaming Support Agent
 
-A production-grade multi-agent AI support assistant for a fictional streaming and rental platform.
+A production-grade multi-agent AI support assistant for a fictional streaming and rental platform, built with **Semantic Kernel `HandoffOrchestration`**, FastAPI, PostgreSQL, and a React + Tailwind CSS frontend.
+
+---
+
+## Architecture
+
+The system routes every customer message through a triage agent that hands off to the correct specialist using Semantic Kernel's native `HandoffOrchestration` — zero custom routing code.
+
+![Architecture Diagram](docs/Arch_Diag_Mermaid.png)
+
+> Full architecture details are in [`docs/design.md`](docs/design.md).
+
+---
+
+## UI Preview
+
+**Default chat view** — session sidebar with conversation history, quick-start chips, and health indicator:
+
+![Chat Default Page](docs/Chat_Default_Page.png)
+
+**Active conversation** — streaming responses from the correct specialist agent with tool badges:
+
+![Chat Page](docs/Chat_Page.png)
+
+**Langfuse tracing dashboard** — every agent turn traced with spans, tool calls, and guardrail results:
+
+![Langfuse Dashboard](docs/LangFuse_DashBoard.png)
+
+---
 
 ## Stack
 
@@ -327,9 +355,31 @@ streaming-support-agent/
 │   ├── orchestrator.py       # HandoffOrchestration pipeline
 │   └── core/                 # Config, logging, Langfuse tracing
 ├── alembic/versions/         # 3 migrations
+├── frontend/                 # React + Vite + Tailwind CSS chat UI
 ├── mcp/server.py             # pagila-support-mcp
 ├── kb/articles.json          # 8 mock support articles
 ├── evals/                    # 12 eval cases + runner
 ├── tests/                    # pytest suite (35+ tests)
-└── docs/                     # design.md, implementation_plan.md, ai_usage.md
+└── docs/
+    ├── Arch_Diag_Mermaid.png           # Architecture diagram (shown above)
+    ├── Chat_Default_Page.png           # UI screenshot — default state
+    ├── Chat_Page.png                   # UI screenshot — active conversation
+    ├── LangFuse_DashBoard.png          # Langfuse tracing dashboard screenshot
+    ├── design.md                       # Architecture & design decisions
+    ├── implementation_plan.md          # Original implementation plan
+    ├── ai_usage.md                     # AI tool usage log
+    ├── cursor_chats_1_thread.md        # Cursor chat — initial project planning & build
+    └── cursor_chat_2_thread.md         # Cursor chat — DB setup, evals, UI, session mgmt
 ```
+
+---
+
+## Development Journal
+
+The `docs/` folder includes exported Cursor AI chat transcripts that document how this project was built:
+
+| File | What it covers |
+|---|---|
+| [`docs/cursor_chats_1_thread.md`](docs/cursor_chats_1_thread.md) | Initial project planning — requirements analysis, architectural decisions (SK `HandoffOrchestration`, DB-backed history, structured JSON outputs, session titles), and full implementation of all 7 agents, plugins, migrations, evals, and tests |
+| [`docs/cursor_chat_2_thread.md`](docs/cursor_chat_2_thread.md) | DB setup, `uv` migration, MCP server, Azure OpenAI / APIM fallback, Langfuse v4 integration, eval debugging, React UI construction, and session management CRUD endpoints |
+| [`docs/Initial_plan_multi-agent_ai_support_75ca371f.plan.md`](docs/Initial_plan_multi-agent_ai_support_75ca371f.plan.md) | The formal implementation plan agreed upon before coding began |
